@@ -35,8 +35,14 @@ def build_spectrogram_animation(filename, fft_size, x_range=None, y_range=None):
 			return
 
 		# TODO: Mettre dans la variable x l'axe fréquentiel et dans y l'axe de valeurs de la prochaine itération du spectrogramme.
+		try:
+			y, x = next(spec)
 
 		# TODO: S'il ne reste rien à traiter, on ferme le graphique avec plt.close(fig) et on met des listes vides dans x et y
+		# Indice : quand vide, il lève un StopIteration
+		except StopIteration:
+			plt.close(fig)
+			x, y = [], []
 
 		# On met à jour seulement les données des lignes (avec nos deux axes) et on redesinne le graphique.
 		line.set_xdata(x)
@@ -45,6 +51,11 @@ def build_spectrogram_animation(filename, fft_size, x_range=None, y_range=None):
 		fig.canvas.flush_events()
 
 	# TODO: Charger le fichier, le mixer (en normalisant) et créer son spectrogramme. On utilse une fenêtre de Hanning (on passe "hann")
+	channels, fps = load_wav(filename)
+	sig = mix_signals(channels, 0.89)
+
+	# TODO: Créer le spectrogramme. On utilise une fenêtre de Hanning (on passe "hann")
+	spec = spectrogram(sig, fft_size, fps, "hann")
 
 	# Création de la figure en laissant de l'espace en bas pour des boutons (ou autres)
 	fig = plt.figure("Spectrogram")
@@ -52,13 +63,15 @@ def build_spectrogram_animation(filename, fft_size, x_range=None, y_range=None):
 
 	# Création du graphe dans l'espace du haut.
 	graph = fig.add_subplot(gs[0, 0])
+
 	# TODO : Appliquer une échelle logarithmique à l'axe des X.
+	graph.set_xscale("log")
 
 	# TODO : Contraindre les valeurs des axes si `x_range` ou `y_range` ne sont pas vides.
 	if x_range is not None:
-		pass #TODO
+		graph.set_xlim(*x_range)
 	if y_range is not None:
-		pass #TODO
+		graph.set_ylim(*y_range)
 
 	# Création de la courbe qui va dessiner la FFT.
 	line = graph.plot([], [])[0]
@@ -85,6 +98,12 @@ def main():
 
 	set_signal_gen_sampling_rate(SAMPLING_FREQ)
 
+	#xs = [i for i in range(10)]
+	#ys = [x ** 2 for x in xs]
+	#plt.plot(xs, ys)
+	#plt.show()
+	#return
+
 	# Un accord majeur (racine, tierce, quinte, octave) en intonation juste
 	root_freq = 220
 	root = sine(root_freq, 1, 2.0)
@@ -100,15 +119,23 @@ def main():
 	save_wav(arpeggio, "output/major_chord_arpeggio.wav", 1, SAMPLING_FREQ)
 
 	# TODO: Afficher la FFT de `block_chord` dans une fenêtre.
-	
+	mag, freq = apply_fft(block_chord, SAMPLING_FREQ)
+	xs, ys = freq, mag
+	plt.plot(xs, ys)
+	plt.show()
+
 	# TODO: Pour chaque note générée précédemment (dans `notes`), afficher sa FFT. On veut ici les afficher indépendamment, mais sur le même graphique.
-	
+	for note in notes:
+		mag, freq = apply_fft(note, SAMPLING_FREQ)
+		xs, ys = freq, mag
+		plt.plot(xs, ys)
+	plt.show()
 
 	wav_filename = "data/stravinsky.wav"
 
 	# Création de l'animation. On contraint ici nos axes pour visionner le domaine intéressant des données.
 	fig, ani = build_spectrogram_animation(wav_filename, 4096, (20, 10_000), (0, 0.2))
-	
+
 	# Création bouton qui part le dessin et la musique.
 	btn_pos = fig.add_axes([0.8, 0.05, 0.15, 0.10])
 	def start_play(event):
